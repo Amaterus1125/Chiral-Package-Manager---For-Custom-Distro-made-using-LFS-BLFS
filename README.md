@@ -112,7 +112,7 @@ usr/
     └── doc/    → documentation
 ```
 
-### Step-by-step: packaging from your BLFS system
+### Step-by-step: packaging from your Operating system
 
 ```bash
 # 1. Compile the package normally on your BLFS system

@@ -1,7 +1,5 @@
-// DO NOT add `mod ui;` here — ui lives inside the chiral lib crate.
-// Importing from chiral:: gives us the single correct type.
 use chiral::ui::ChiralUI;
-use chiral::{install_binary, remove_binary, update_binary, search_packages, list_installed};
+use chiral::{install_binary, remove_binary, update_binary, search_packages, list_installed, info_package};
 use std::env;
 
 fn print_help() {
@@ -14,6 +12,7 @@ fn print_help() {
     println!("  chiral upgrade               Update all installed packages");
     println!("  chiral search  <query>       Search available packages");
     println!("  chiral list                  List installed packages");
+    println!("  chiral info    <package>     Show version, source and files for a package");
 }
 
 fn main() {
@@ -48,6 +47,10 @@ fn main() {
         }
         "list" => {
             list_installed()
+        }
+        "info" => {
+            if args.len() < 3 { eprintln!("Usage: chiral info <package>"); std::process::exit(1); }
+            info_package(&args[2])
         }
         _ => {
             eprintln!("Unknown command: {}", args[1]);

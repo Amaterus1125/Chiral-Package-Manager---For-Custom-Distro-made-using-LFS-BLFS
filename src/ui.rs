@@ -126,6 +126,6 @@ impl ChiralUI {
     }
 
     pub fn finish(&self) {
-        println!("\n\n✨ Verification complete. Structural isomer synthesis stabilized successfully.\n");
+        println!("\n\n Verification complete. Structural isomer synthesis stabilized successfully.\n");
     }
 }

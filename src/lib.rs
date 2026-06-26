@@ -8,13 +8,10 @@ use std::path::{Path, PathBuf};
 use tar::Archive;
 use crate::ui::ChiralUI;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Package repository
-// ─────────────────────────────────────────────────────────────────────────────
 
 const SERVER: &str = "https://raw.githubusercontent.com/Amaterus1125/chpm/main/packages";
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // Paths
 //
 //   root user:
@@ -28,7 +25,7 @@ const SERVER: &str = "https://raw.githubusercontent.com/Amaterus1125/chpm/main/p
 //   normal user:
 //     everything    → ~/.local/   (mirrors the same structure)
 //     DB            → ~/.local/share/chiral/
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 fn is_root() -> bool {
     unsafe { libc::getuid() == 0 }
@@ -63,14 +60,12 @@ fn db_file() -> Result<PathBuf, String> {
     Ok(db_dir()?.join("installed.db"))
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // File tracking DB  — records every file a package installed so we can remove
 // them cleanly later. Format:
 //   [package=version]
 //   /usr/local/bin/hello
 //   /usr/local/lib/libhello.so
-//   ...
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 fn db_ensure() -> Result<(), String> {
     let dir  = db_dir()?;
@@ -190,9 +185,8 @@ fn db_remove_entry(package: &str) -> Result<(), String> {
     fs::write(db_file()?, new_content).map_err(|e| e.to_string())
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Download
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 fn download(url: &str, dest: &Path) -> Result<(), String> {
     let mut response = reqwest::blocking::get(url)
@@ -212,9 +206,8 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // Extract — preserves full directory structure from tarball
-//
 // Your tarballs should be structured like:
 //   usr/bin/hello
 //   usr/lib/libhello.so.1
@@ -227,9 +220,8 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
 //   /usr/local/bin/hello
 //   /usr/local/lib/libhello.so.1
 //   etc.
-//
 // Returns list of every file actually placed on disk (for DB tracking)
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 fn extract(tarball: &Path, prefix: &Path) -> Result<Vec<PathBuf>, String> {
     let mut archive = Archive::new(GzDecoder::new(
@@ -326,9 +318,9 @@ fn extract(tarball: &Path, prefix: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(placed)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // PATH / ldconfig hint
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 fn path_hint(prefix: &Path) {
     let bin_dir = prefix.join("bin");
@@ -356,9 +348,9 @@ fn path_hint(prefix: &Path) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // PUBLIC API
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 /// chiral install <package>
 pub fn install_binary(ui: &mut ChiralUI, package: &str) -> Result<(), String> {

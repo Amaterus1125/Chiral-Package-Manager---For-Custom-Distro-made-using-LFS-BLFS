@@ -1306,8 +1306,9 @@ pub fn self_update() -> Result<(), String> {
     let current = std::env::current_exe()
         .map_err(|e| format!("Cannot find current binary: {}", e))?;
 
-    std::fs::rename(&tmp, &current)
-        .map_err(|e| format!("Cannot replace binary (try sudo): {}", e))?;
+std::fs::copy(&tmp, &current)
+    .map_err(|e| format!("Cannot replace binary (try sudo): {}", e))?;
+std::fs::remove_file(&tmp).ok();
 
     println!("✓ Updated to v{} — restart chiral to use new version.", latest);
     Ok(())

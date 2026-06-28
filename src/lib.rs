@@ -1275,7 +1275,7 @@ pub fn self_update() -> Result<(), String> {
     let latest = json["tag_name"]
         .as_str()
         .ok_or("Could not get latest version")?
-        .trim_start_matches('v');+
+        .trim_start_matches('v');
 
     if latest == CURRENT_VERSION {
         println!("Already up to date (v{}).", CURRENT_VERSION);

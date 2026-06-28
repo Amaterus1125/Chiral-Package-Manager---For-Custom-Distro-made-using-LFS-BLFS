@@ -9,15 +9,16 @@ use std::path::{Path, PathBuf};
 use tar::Archive;
 use crate::ui::ChiralUI;
 
-
+// ─────────────────────────────────────────────────────────────────────────────
 // Package repositories
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 const SERVER: &str = "https://raw.githubusercontent.com/Amaterus1125/chpm/main/packages";
 const ARCH_MIRROR: &str = "https://mirror.rackspace.com/archlinux";
 
-//paths
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Paths
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn is_root() -> bool {
     unsafe { libc::getuid() == 0 }
@@ -49,11 +50,13 @@ fn db_file() -> Result<PathBuf, String> {
     Ok(db_dir()?.join("installed.db"))
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // File tracking DB
 // Format:
 //   [pkgname=1.2.3|debian]
 //   /usr/local/bin/foo
-
+//   ...
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn db_ensure() -> Result<(), String> {
     let dir  = db_dir()?;
@@ -169,8 +172,9 @@ fn db_remove_entry(package: &str) -> Result<(), String> {
     fs::write(db_file()?, new_content).map_err(|e| e.to_string())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Download
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn download(url: &str, dest: &Path) -> Result<(), String> {
     let mut response = reqwest::blocking::get(url)
@@ -190,8 +194,9 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Arch API — returns full package info including deps
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 struct ArchPkg {
     repo:     String,
@@ -424,7 +429,7 @@ fn try_debian(package: &str, dest: &Path) -> Result<String, String> {
     Ok(version)
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
 // Dependency resolution
 //
 // Uses Arch API for dep lists (most complete and structured).
@@ -433,7 +438,7 @@ fn try_debian(package: &str, dest: &Path) -> Result<String, String> {
 //
 // Returns Vec<String> in install order, NOT including packages already
 // installed, NOT including the root package itself (caller installs that).
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// Strip version constraints from a dep string e.g. "glib2>=2.80" → "glib2"
 fn strip_ver(dep: &str) -> String {
@@ -698,10 +703,10 @@ pub fn resolve_deps(package: &str) -> Result<Vec<String>, String> {
     Ok(result)
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
 // Download with fallback chain — returns (source, version, deps)
 // deps only populated when Arch is used (that's where we get them)
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn download_package(
     ui: &mut ChiralUI,
@@ -733,9 +738,9 @@ fn download_package(
     ))
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
 // Install a single package (no dep resolution — used internally)
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn install_one(ui: &mut ChiralUI, package: &str, prefix: &Path) -> Result<(), String> {
     let tmp = std::env::temp_dir().join(format!("chiral-{}.tar.gz", package));
@@ -750,8 +755,9 @@ fn install_one(ui: &mut ChiralUI, package: &str, prefix: &Path) -> Result<(), St
     Ok(())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Extract
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn extract(tarball: &Path, prefix: &Path) -> Result<Vec<PathBuf>, String> {
     let mut archive = Archive::new(GzDecoder::new(
@@ -837,9 +843,9 @@ fn extract(tarball: &Path, prefix: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(placed)
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
 // PATH / ldconfig hint
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn path_hint(prefix: &Path) {
     let bin_dir = prefix.join("bin");
@@ -866,8 +872,9 @@ fn path_hint(prefix: &Path) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API
-
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// chiral install <package>
 pub fn install_binary(ui: &mut ChiralUI, package: &str) -> Result<(), String> {
@@ -1058,10 +1065,118 @@ pub fn list_installed() -> Result<(), String> {
     Ok(())
 }
 
+/// Get version string from the host package manager
+fn get_system_version(package: &str, host_pm: &HostPm) -> Option<String> {
+    let output = match host_pm {
+        HostPm::Pacman => std::process::Command::new("pacman")
+            .args(["-Q", package])
+            .output().ok()?,
+        HostPm::Apt => std::process::Command::new("dpkg")
+            .args(["-s", package])
+            .output().ok()?,
+        HostPm::Rpm => std::process::Command::new("rpm")
+            .args(["-q", package])
+            .output().ok()?,
+        HostPm::Unknown => return None,
+    };
+
+    let out = String::from_utf8_lossy(&output.stdout).to_string();
+    match host_pm {
+        // pacman -Q returns "pkgname version"
+        HostPm::Pacman => out.split_whitespace().nth(1).map(|s| s.to_string()),
+        // dpkg -s returns "Version: x.x.x" in the output
+        HostPm::Apt => out.lines()
+            .find(|l| l.starts_with("Version:"))
+            .and_then(|l| l.split(':').nth(1))
+            .map(|s| s.trim().to_string()),
+        HostPm::Rpm => Some(out.trim().to_string()),
+        HostPm::Unknown => None,
+    }
+}
+
+/// Detect how a package got onto the system — chiral, pacman, dpkg, rustup, PATH, etc.
+fn detect_install_source(package: &str, host_pm: &HostPm) -> String {
+    // 1. Check pacman/dpkg/rpm
+    let pm_has = match host_pm {
+        HostPm::Pacman => std::process::Command::new("pacman")
+            .args(["-Q", package])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status().map(|s| s.success()).unwrap_or(false),
+        HostPm::Apt => std::process::Command::new("dpkg")
+            .args(["-s", package])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status().map(|s| s.success()).unwrap_or(false),
+        HostPm::Rpm => std::process::Command::new("rpm")
+            .args(["-q", package])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status().map(|s| s.success()).unwrap_or(false),
+        HostPm::Unknown => false,
+    };
+
+    if pm_has {
+        return match host_pm {
+            HostPm::Pacman => "pacman".to_string(),
+            HostPm::Apt    => "apt/dpkg".to_string(),
+            HostPm::Rpm    => "rpm".to_string(),
+            HostPm::Unknown => "system".to_string(),
+        };
+    }
+
+    // 2. Check rustup (for rust, cargo, rustc)
+    if ["rust", "rustc", "cargo", "rustup"].contains(&package) {
+        let rustup_check = std::process::Command::new("rustup")
+            .arg("show")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status().map(|s| s.success()).unwrap_or(false);
+        if rustup_check { return "rustup".to_string(); }
+    }
+
+    // 3. Check if binary exists on PATH
+    let on_path = std::process::Command::new("sh")
+        .args(["-c", &format!("command -v {}", package)])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status().map(|s| s.success()).unwrap_or(false);
+    if on_path { return "manual/PATH".to_string(); }
+
+    // 4. pkg-config
+    let pc = std::process::Command::new("pkg-config")
+        .args(["--exists", package])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status().map(|s| s.success()).unwrap_or(false);
+    if pc { return "manual/pkg-config".to_string(); }
+
+    "unknown".to_string()
+}
+
 /// chiral info <package>
 pub fn info_package(package: &str) -> Result<(), String> {
+    let host_pm = detect_host_pm();
+
+    // Not in chiral DB — check if it exists on the system anyway
     if !db_is_installed(package) {
-        return Err(format!("'{}' is not installed.", package));
+        if system_has(package, &host_pm) {
+            let source  = detect_install_source(package, &host_pm);
+            let version = get_system_version(package, &host_pm)
+                .unwrap_or_else(|| "unknown".to_string());
+
+            println!("{}", "─".repeat(55));
+            println!("  Package : {}", package);
+            println!("  Status  : not managed by chiral");
+            println!("  Version : {}", version);
+            println!("  Source  : {} (installed outside chiral)", source);
+            println!();
+            println!("  Tip: chiral did not install this package.");
+            println!("       Use {} to manage it.", source);
+            println!("{}", "─".repeat(55));
+            return Ok(());
+        }
+        return Err(format!("'{}' is not installed by chiral or found on this system.", package));
     }
 
     let (version, source) = db_get_entry(package)
@@ -1131,7 +1246,7 @@ pub fn show_deps(package: &str) -> Result<(), String> {
         return Ok(());
     }
 
-    println!("\n Would install {} package(s) in this order:", deps.len());
+    println!("\n📦 Would install {} package(s) in this order:", deps.len());
     println!("{}", "─".repeat(40));
     for (i, dep) in deps.iter().enumerate() {
         println!("  {}. {}", i + 1, dep);
